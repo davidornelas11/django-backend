@@ -26,7 +26,9 @@ def trigger_meal_plan_view(request, profile_id):
             'task_id': task.id
         })
     except Exception as e:
+        import logging
+        logging.error("Error initiating meal planning process for profile ID %s: %s", profile_id, str(e), exc_info=True)
         return JsonResponse({
             'status': 'error',
-            'message': f'Failed to initiate meal planning process: {str(e)}'
+            'message': 'An internal error occurred while initiating the meal planning process.'
         }, status=500)
