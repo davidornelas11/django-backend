@@ -42,10 +42,20 @@ class Profile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
-    scraped_data = models.JSONField(null=True, blank=True)
+    
+    # Location data
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
-
+    
+    # Meal planning preferences
+    preferences = models.JSONField(default=dict, help_text="User's food preferences and favorite cuisines")
+    dietary_restrictions = models.JSONField(default=dict, help_text="User's dietary restrictions and allergies")
+    weekly_budget = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Weekly grocery budget")
+    preferred_store_id = models.CharField(max_length=100, blank=True, help_text="Preferred Instacart store ID")
+    
+    # Generated meal plan and cart data
+    meal_plan = models.JSONField(null=True, blank=True, help_text="Generated meal plan and Instacart cart URL")
+    
     def __str__(self):
         return f"{self.user.username}'s profile"
 

@@ -1,0 +1,124 @@
+---
+description: Creating a shopping cart using instacart api
+globs: 
+alwaysApply: false
+---
+Title: Create shopping list page | Instacart Docs
+
+URL Source: https://docs.instacart.com/developer_platform_api/api/products/create_shopping_list_page
+
+Markdown Content:
+`POST /idp/v1/products/products_link`
+
+Creates a shopping list page on Instacart Marketplace and generates a link to the page. When a user of your site or app clicks the generated link, the page opens and the user can select a store, add products to a cart, and check out.
+
+Each request must include an array of `LineItem` objects that represent products. For each line item, specify at least a product name. Instacart uses the product names to find matching products to display to your user. You can also specify quantities, units of measurement, and filters. For a list of valid units, see [Units of measurement](https://docs.instacart.com/developer_platform_api/api/units_of_measurement).
+
+When creating a `LineItem` object, determine whether the ingredient has a single measurement or multiple measurements. For example:
+
+*   **Single measurement**: A shopping list `LineItem` might be a 10.75 fl oz can of tomato soup.
+*   **Multiple measurements**: A shopping list `LineItem` could include flour listed as 1 cup / 16 tbsp / 48 tsp.
+
+By default, the Create a Shopping List API displays single measurements using the `unit` and `quantity` fields. To include multiple measurements, use the `line_item_measurements` array to pass additional measurement options.
+
+Optionally, you can specify other page attributes, such as an image, description, and instructions. You can also include a link back to your site and specify if customers can exclude items they already have in their pantry.
+
+Best practice
+
+*   Cache the generated shopping list page URL and reuse it. Don't generate a new URL unless the shopping list changes.
+*   Only pass units listed in the supported [Units of measurement](https://docs.instacart.com/developer_platform_api/api/units_of_measurement) page. If you pass a unit that is not listed, quantity matching will not work.
+
+| Name | In | Description |
+| --- | --- | --- |
+| Authorization | header | A bearer token. In this context, the token is the API key that you received from Instacart when you signed up for Instacart Developer Platform. |
+
+URL parameters[​](https://docs.instacart.com/developer_platform_api/api/products/create_shopping_list_page#url-parameters "Direct link to URL parameters")
+----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+None.
+
+Request body[​](https://docs.instacart.com/developer_platform_api/api/products/create_shopping_list_page#request-body "Direct link to Request body")
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `title` | string | ![Image 1: Required](https://docs.instacart.com/assets/required-icon.png) | The title of the shopping list or recipe page. |
+| `image_url` | string | ![Image 2: Optional](https://docs.instacart.com/assets/optional-icon.png) | The URL of the image to display on the shopping list or recipe page. Image size must be 500x500 pixels. |
+| `link_type` | string | ![Image 3: Optional](https://docs.instacart.com/assets/optional-icon.png) | The type of product link to create. One of 'shopping_list' or 'recipe'. Defaults to shopping_list. |
+| `expires_in` | integer | ![Image 4: Optional](https://docs.instacart.com/assets/optional-icon.png) | The number of days until the link expires. The maximum value is 365 days. When the link_type is 'recipe', the default is 30 days. When the link_type is 'shopping_list', there is no default value. |
+| `instructions` | Array(string) | ![Image 5: Optional](https://docs.instacart.com/assets/optional-icon.png) | Text that provides additional context about the shopping list or recipe, such as instructions for making a recipe or a dietary recommendation. |
+| `line_items` | Array([LineItem](https://docs.instacart.com/developer_platform_api/api/products/create_shopping_list_page#LineItem-object)) | ![Image 6: Required](https://docs.instacart.com/assets/required-icon.png) | The line items (products) to include in the shopping list or recipe. |
+| `landing_page_configuration` | [LandingPageConfiguration](https://docs.instacart.com/developer_platform_api/api/products/create_shopping_list_page#LandingPageConfiguration-object) | ![Image 7: Optional](https://docs.instacart.com/assets/optional-icon.png) | The configuration for the shopping list or recipe page. |
+
+### LineItem Object[​](https://docs.instacart.com/developer_platform_api/api/products/create_shopping_list_page#LineItem-object "Direct link to LineItem-object")
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | ![Image 8: Required](https://docs.instacart.com/assets/required-icon.png) | The product name. Instacart uses the product name as a search term to find a matching product. |
+| `quantity` | number | ![Image 9: Optional](https://docs.instacart.com/assets/optional-icon.png) | The product quantity. This value represents either the item count or measurement as defined by the 'unit' attribute. Used by Instacart to determine the quantity of this item to add. Defaults to 1.0. |
+| `unit` | string | ![Image 10: Optional](https://docs.instacart.com/assets/optional-icon.png) | The unit of measurement associated with the quantity attribute. Some example units include each, package, tablespoon, teaspoon, ounce, or kilogram. For countable items such as tomatoes, it is recommended to use the each value rather than specifying a weight. Defaults to each. |
+| `display_text` | string | ![Image 11: Optional](https://docs.instacart.com/assets/optional-icon.png) | The title of the matched ingredient to be displayed in the search results and ingredient list. If this is not provided, the 'name' field in the 'LineItem' object will be used. |
+| `line_item_measurements` | Array([Measurement](https://docs.instacart.com/developer_platform_api/api/products/create_shopping_list_page#Measurement-object)) | ![Image 12: Optional](https://docs.instacart.com/assets/optional-icon.png) | Optional measurement units used to specify the ingredient quantity in multiple ways. If this is not provided, the 'unit' and 'quantity' fields in the 'LineItem' object will be used. |
+| `filters` | [Filter](https://docs.instacart.com/developer_platform_api/api/products/create_shopping_list_page#Filter-object) | ![Image 13: Optional](https://docs.instacart.com/assets/optional-icon.png) | Optional filters used to specify product matching criteria. |
+
+### Measurement Object[​](https://docs.instacart.com/developer_platform_api/api/products/create_shopping_list_page#Measurement-object "Direct link to Measurement-object")
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `quantity` | number | ![Image 14: Optional](https://docs.instacart.com/assets/optional-icon.png) | The product quantity. This value represents either the item count or measurement as defined by the 'unit' attribute. Used by Instacart to determine the quantity of this item to add. Defaults to 1.0. |
+| `unit` | string | ![Image 15: Optional](https://docs.instacart.com/assets/optional-icon.png) | The unit of measurement associated with the quantity attribute. Some example units include each, package, tablespoon, teaspoon, ounce, or kilogram. For countable items such as tomatoes, it is recommended to use the each value rather than specifying a weight. Defaults to each. |
+
+### Filter Object[​](https://docs.instacart.com/developer_platform_api/api/products/create_shopping_list_page#Filter-object "Direct link to Filter-object")
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `brand_filters` | Array(string) | ![Image 16: Optional](https://docs.instacart.com/assets/optional-icon.png) | Optional brand filters to match products. Add the brand names to the `brand_filters` array separated by commas. The brand filter is case-sensitive. Brand names must be spelled exactly as they appear in the catalog. |
+| `health_filters` | Array(string) | ![Image 17: Optional](https://docs.instacart.com/assets/optional-icon.png) | Optional health filters to match products. Valid values are ORGANIC, GLUTEN_FREE, FAT_FREE, VEGAN, KOSHER, SUGAR_FREE, LOW_FAT. |
+
+### LandingPageConfiguration Object[​](https://docs.instacart.com/developer_platform_api/api/products/create_shopping_list_page#LandingPageConfiguration-object "Direct link to LandingPageConfiguration-object")
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `partner_linkback_url` | string | ![Image 18: Optional](https://docs.instacart.com/assets/optional-icon.png) | The URL link to the shopping list or recipe on the developer's app or website. |
+| `enable_pantry_items` | boolean | ![Image 19: Optional](https://docs.instacart.com/assets/optional-icon.png) | Whether items can be marked as pantry items. Pantry items are items that a user might already have at home and doesn't need to add to the cart. Default is false and only supported on 'recipe' link_type. |
+
+Request examples[​](https://docs.instacart.com/developer_platform_api/api/products/create_shopping_list_page#request-examples "Direct link to Request examples")
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*   cURL
+*   Java
+*   Python
+*   Go
+
+`curl --request POST \  --url https://connect.instacart.com/idp/v1/products/products_link \  --header 'Accept: application/json' \  --header 'Authorization: Bearer <API-key>' \  --header 'Content-Type: application/json' \  --data '{  "title": "string",  "image_url": "string",  "link_type": "string",  "expires_in": 1,  "instructions": [    "string"  ],  "line_items": [    {      "name": "string",      "quantity": 1,      "unit": "string",      "display_text": "string",      "line_item_measurements": [        {          "quantity": 1,          "unit": "string"        }      ],      "filters": {        "brand_filters": [          "string"        ],        "health_filters": [          "string"        ]      }    }  ],  "landing_page_configuration": {    "partner_linkback_url": "string",    "enable_pantry_items": true  }}'`
+
+Response[​](https://docs.instacart.com/developer_platform_api/api/products/create_shopping_list_page#response "Direct link to Response")
+----------------------------------------------------------------------------------------------------------------------------------------
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `products_link_url` | string | ![Image 20: Required](https://docs.instacart.com/assets/required-icon.png) | Products link URL. |
+
+Response examples[​](https://docs.instacart.com/developer_platform_api/api/products/create_shopping_list_page#response-examples "Direct link to Response examples")
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+200 Success
+-----------
+
+*   `200` Create a product link successfully without affiliate_id
+*   `200` Create a product link successfully with affiliate_id
+
+`{  "products_link_url": "http://example.com"}`
+
+4XX Errors
+----------
+
+Error responses return either a[single error](https://docs.instacart.com/connect/api/error_and_status_codes#single-error-response-format)or[multiple errors](https://docs.instacart.com/connect/api/error_and_status_codes#multiple-errors-response-format).
+
+| HTTP Code | Cause | Error Message | Error Code | Error Meta |
+| --- | --- | --- | --- | --- |
+| `400` | Bad request missing required parameters* | "There were issues with your request" | `9999` | Not applicable |
+| `400` | Bad request invalid health filters | "Invalid health filters: ["INVALID"]" | `1001` | `{"key":"line_items[0].filters.health_filters"}` |
+| `400` | Bad request invalid measurement quantity | "Invalid quantity: -0.1. Cannot be lower than or equal to 0.0" | `1001` | `{"key":"line_items[0].line_item_measurements[0].quantity"}` |
+
+##### * Multiple error

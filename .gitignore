@@ -18,17 +18,50 @@ lib64/
 venv/
 .env/
 .venv/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+bin/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+venv/
+.env/
+.venv/
 
 # Django
 *.log
 *.pot
-*.pyc
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
 media/
 static/
 staticfiles/
+logs/
+*.log
+celerybeat-schedule
+celerybeat.pid
+
+# Redis
+dump.rdb
+*.rdb
+
+# Environment variables
+.env
+.env.*
+!.env.example
 
 # IDE
 .idea/
@@ -36,7 +69,31 @@ staticfiles/
 *.swp
 *.swo
 *~
+.project
+.pydevproject
+.settings/
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Celery
+celerybeat-schedule
+celerybeat.pid

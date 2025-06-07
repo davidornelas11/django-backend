@@ -25,10 +25,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-##4wz&zm^3rhby&c-v68sfv@so0doe%z6jh%_5+%c-85#w1m70')
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+DEBUG = os.environ.get('DJANGO_DEBUG') == 'True'
 
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
@@ -185,7 +185,11 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
+            'format': '[{levelname}] {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'detailed': {
+            'format': '[{levelname}] {asctime} {module} {process:d} {thread:d} {message}\nPath: {pathname}\nLine: {lineno}\nFunction: {funcName}\n',
             'style': '{',
         },
     },
@@ -193,13 +197,50 @@ LOGGING = {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
+            'level': 'INFO',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'celery.log'),
+            'formatter': 'detailed',
+            'level': 'DEBUG',
+        },
+        'error_file': {
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'celery_error.log'),
+            'formatter': 'detailed',
+            'level': 'ERROR',
         },
     },
     'loggers': {
         'core.tasks': {
-            'handlers': ['console'],
-            'level': 'INFO',
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'celery': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'langchain': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'DEBUG',
             'propagate': True,
         },
     },
 }
+
+# Create logs directory if it doesn't exist
+os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
+
+# API Keys and External Services Configuration
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+INSTACART_API_KEY = os.environ.get('INSTACART_API_KEY')
+INSTACART_API_SECRET = os.environ.get('INSTACART_API_SECRET')
+
+# LangChain Configuration
+LANGCHAIN_TRACING_V2 = True
+LANGCHAIN_ENDPOINT = "https://api.smith.langchain.com"
+LANGCHAIN_API_KEY = os.environ.get('LANGCHAIN_API_KEY')
+LANGCHAIN_PROJECT = "meal-planner"
