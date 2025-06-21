@@ -42,7 +42,6 @@ def test_celery_workers():
     
     try:
         # Setup Django
-        sys.path.append('/Users/dornela3/Desktop/django-project')
         os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
         
         import django
@@ -77,7 +76,6 @@ def test_simple_task():
     
     try:
         # Setup Django
-        sys.path.append('/Users/dornela3/Desktop/django-project')
         os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
         
         import django

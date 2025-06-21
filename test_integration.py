@@ -21,9 +21,6 @@ import json
 import time
 from datetime import datetime
 
-# Add the project directory to Python path
-sys.path.append('/Users/dornela3/Desktop/django-project')
-
 # Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()

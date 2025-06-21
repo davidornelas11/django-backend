@@ -87,6 +87,27 @@ We provide several scripts to test different parts of your system. Run them from
   python test_instacart_api.py
   ```
 
+### 5. **Database Inspection** (`check_meal_plans.py`)
+- **Purpose:** View all meal plans in the database, check their status, and create test plans.
+- **Run:**
+  ```bash
+  python check_meal_plans.py
+  ```
+
+### 6. **Cleanup Script** (`cleanup_failed_plans.py`)
+- **Purpose:** Clean up failed meal plans and reset pending ones.
+- **Run:**
+  ```bash
+  python cleanup_failed_plans.py
+  ```
+
+### 7. **Meal Plan Viewer** (`view_meal_plan.py`)
+- **Purpose:** View the full content of generated meal plans.
+- **Run:**
+  ```bash
+  python view_meal_plan.py
+  ```
+
 ---
 
 ## 🛒 Verifying Instacart API with curl

@@ -9,9 +9,6 @@ import os
 import sys
 import django
 
-# Add the project directory to Python path
-sys.path.append('/Users/dornela3/Desktop/django-project')
-
 # Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
