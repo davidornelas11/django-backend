@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # Django web application (development)
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - DJANGO_DEBUG=True
+      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/meal_planning
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - db
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    stdin_open: true
+    tty: true
+
+  # Celery worker (development)
+  celery:
+    build: .
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/meal_planning
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - db
+    command: celery -A core worker --loglevel=info --concurrency=2
+    stdin_open: true
+    tty: true
+
+  # Celery beat (development)
+  celery-beat:
+    build: .
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/meal_planning
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - db
+    command: celery -A core beat --loglevel=info
+    stdin_open: true
+    tty: true
+
+  # Redis for Celery broker
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  # PostgreSQL database
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=meal_planning
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  # Redis Commander (web UI for Redis)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+
+  # pgAdmin (web UI for PostgreSQL)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+
+volumes:
+  redis_data:
+  postgres_data: 

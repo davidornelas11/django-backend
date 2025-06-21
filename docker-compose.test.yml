@@ -1,0 +1,65 @@
+services:
+  # Test database
+  test-db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=test_meal_planning
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - test_postgres_data:/var/lib/postgresql/data
+
+  # Test Redis
+  test-redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - test_redis_data:/data
+
+  # Test runner
+  test:
+    build: .
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - REDIS_URL=redis://test-redis:6379/0
+      - DATABASE_URL=postgresql://postgres:postgres@test-db:5432/test_meal_planning
+      - DJANGO_DEBUG=True
+      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+    env_file:
+      - .env
+    depends_on:
+      - test-redis
+      - test-db
+    command: >
+      sh -c "python manage.py migrate &&
+             python test_services.py &&
+             python test_components.py &&
+             python test_integration.py &&
+             python test_instacart_api.py"
+
+  # Celery test worker
+  test-celery:
+    build: .
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - REDIS_URL=redis://test-redis:6379/0
+      - DATABASE_URL=postgresql://postgres:postgres@test-db:5432/test_meal_planning
+    env_file:
+      - .env
+    depends_on:
+      - test-redis
+      - test-db
+    command: celery -A core worker --loglevel=info
+
+volumes:
+  test_postgres_data:
+  test_redis_data: 
