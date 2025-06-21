@@ -2,92 +2,141 @@ import requests
 import json
 import os
 from typing import Dict, List, Optional
+import logging
 
 class InstacartClient:
     """
     A client for interacting with the Instacart API.
+    Uses the correct endpoints and request format from the official API.
     """
     
-    def __init__(self, api_key: str, api_secret: str):
+    def __init__(self, api_key: str):
         self.api_key = api_key
-        self.api_secret = api_secret
-        self.base_url = "https://api.instacart.com/v1"
+        self.base_url = "https://connect.dev.instacart.tools"
         self.session = requests.Session()
         self.session.headers.update({
             "Authorization": f"Bearer {self.api_key}",
+            "Accept": "application/json",
             "Content-Type": "application/json"
         })
     
-    def create_cart(self, store_id: str, delivery_address: Dict[str, float]) -> 'Cart':
+    def create_shopping_cart(self, title: str, line_items: List[Dict], instructions: List[str] = None) -> Dict:
         """
-        Creates a new shopping cart for a specific store.
+        Creates a shopping cart using the Instacart Products Link API.
         
         Args:
-            store_id: The ID of the store to create the cart for
-            delivery_address: Dictionary containing latitude and longitude
+            title: Title for the shopping cart
+            line_items: List of items to add to the cart
+            instructions: Optional list of instructions for the cart
             
         Returns:
-            Cart: A Cart object for managing items
+            Dict: Response from the API containing the cart information
         """
-        response = self.session.post(
-            f"{self.base_url}/carts",
-            json={
-                "store_id": store_id,
-                "delivery_address": delivery_address
+        url = f"{self.base_url}/idp/v1/products/products_link"
+        
+        payload = {
+            "title": title,
+            "image_url": "",  # Optional: can be empty string
+            "link_type": "shopping_list",
+            "expires_in": 7,  # In days, not seconds
+            "instructions": instructions or [],
+            "line_items": line_items,
+            "landing_page_configuration": {
+                "partner_linkback_url": "",
+                "enable_pantry_items": True
             }
-        )
-        response.raise_for_status()
-        cart_data = response.json()
-        return Cart(self, cart_data["cart_id"])
-    
-    def get_store_info(self, store_id: str) -> Dict:
-        """
-        Gets information about a specific store.
+        }
         
-        Args:
-            store_id: The ID of the store
-            
-        Returns:
-            Dict: Store information
-        """
-        response = self.session.get(f"{self.base_url}/stores/{store_id}")
+        # Debug logging
+        logger = logging.getLogger('core.tasks')
+        logger.info(f"🔍 DEBUG: Making request to URL: {url}")
+        logger.info(f"🔍 DEBUG: Request headers: {dict(self.session.headers)}")
+        logger.info(f"🔍 DEBUG: Request payload: {json.dumps(payload, indent=2)}")
+        logger.info(f"🔍 DEBUG: Authorization header: Bearer {self.api_key[:10]}...{self.api_key[-4:] if len(self.api_key) > 14 else ''}")
+        
+        response = self.session.post(url, json=payload)
+        
+        logger.info(f"🔍 DEBUG: Response status code: {response.status_code}")
+        logger.info(f"🔍 DEBUG: Response headers: {dict(response.headers)}")
+        
+        try:
+            response_json = response.json()
+            logger.info(f"🔍 DEBUG: Response body: {json.dumps(response_json, indent=2)}")
+        except Exception as e:
+            logger.info(f"🔍 DEBUG: Could not parse response as JSON: {response.text}")
+        
         response.raise_for_status()
         return response.json()
+    
+    def create_meal_plan_cart(self, meal_plan_title: str, ingredients: List[Dict]) -> Dict:
+        """
+        Creates a shopping cart specifically for meal plan ingredients.
+        
+        Args:
+            meal_plan_title: Title for the meal plan
+            ingredients: List of ingredients with name, quantity, and unit
+            
+        Returns:
+            Dict: Response from the API containing the cart information
+        """
+        # Convert ingredients to the format expected by Instacart API
+        line_items = []
+        for ingredient in ingredients:
+            line_item = {
+                "name": ingredient.get("name", ""),
+                "quantity": ingredient.get("quantity", 1),
+                "unit": ingredient.get("unit", "each"),
+                "display_text": f"{ingredient.get('quantity', 1)} {ingredient.get('unit', 'each')} {ingredient.get('name', '')}",
+                "line_item_measurements": [
+                    {
+                        "quantity": ingredient.get("quantity", 1),
+                        "unit": ingredient.get("unit", "each")
+                    }
+                ],
+                "filters": {
+                    "brand_filters": [],
+                    "health_filters": []
+                }
+            }
+            line_items.append(line_item)
+        
+        instructions = [
+            "This shopping list was generated from your meal plan",
+            "Please review quantities and brands before purchasing"
+        ]
+        
+        return self.create_shopping_cart(
+            title=meal_plan_title,
+            line_items=line_items,
+            instructions=instructions
+        )
 
 class Cart:
     """
     Represents a shopping cart in the Instacart system.
+    Note: This is now a simplified wrapper around the API response.
     """
     
-    def __init__(self, client: InstacartClient, cart_id: str):
+    def __init__(self, client: InstacartClient, cart_data: Dict):
         self.client = client
-        self.cart_id = cart_id
-        self.items = []
-    
-    def add_item(self, name: str, quantity: float, unit: str) -> None:
-        """
-        Adds an item to the cart.
-        
-        Args:
-            name: Name of the item
-            quantity: Quantity to add
-            unit: Unit of measurement (e.g., "oz", "lb", "each")
-        """
-        self.items.append({
-            "name": name,
-            "quantity": quantity,
-            "unit": unit
-        })
+        self.cart_data = cart_data
+        self.cart_id = cart_data.get("id", "")
+        self.share_url = cart_data.get("share_url", "")
     
     def get_share_url(self) -> str:
         """
-        Gets a shareable URL for the cart.
+        Gets the shareable URL for the cart.
         
         Returns:
             str: URL to share the cart
         """
-        response = self.client.session.post(
-            f"{self.client.base_url}/carts/{self.cart_id}/share"
-        )
-        response.raise_for_status()
-        return response.json()["share_url"] 
+        return self.share_url
+    
+    def get_cart_data(self) -> Dict:
+        """
+        Gets the complete cart data.
+        
+        Returns:
+            Dict: Complete cart information
+        """
+        return self.cart_data 

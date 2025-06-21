@@ -55,7 +55,7 @@ class Profile(models.Model):
     
     # Generated meal plan and cart data
     meal_plan = models.JSONField(null=True, blank=True, help_text="Generated meal plan and Instacart cart URL")
-    
+
     def __str__(self):
         return f"{self.user.username}'s profile"
 
