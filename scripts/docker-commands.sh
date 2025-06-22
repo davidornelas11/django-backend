@@ -36,6 +36,11 @@ case "$1" in
         echo "✅ Test environment cleaned up!"
         ;;
     
+    "test-auth")
+        echo "🔐 Running authentication tests..."
+        docker-compose -f docker-compose.dev.yml exec web python test_authentication.py
+        ;;
+    
     "prod-up")
         echo "🚀 Starting production environment..."
         docker-compose up -d
@@ -134,6 +139,7 @@ case "$1" in
         echo "Testing:"
         echo "  ./scripts/docker-commands.sh test            # Run all tests"
         echo "  ./scripts/docker-commands.sh test-clean      # Clean test environment"
+        echo "  ./scripts/docker-commands.sh test-auth       # Run authentication tests"
         echo "  ./scripts/docker-commands.sh test-components # Run component tests"
         echo "  ./scripts/docker-commands.sh test-integration # Run integration tests"
         echo "  ./scripts/docker-commands.sh test-instacart  # Run Instacart tests"

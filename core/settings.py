@@ -256,3 +256,15 @@ LANGCHAIN_TRACING_V2 = True
 LANGCHAIN_ENDPOINT = "https://api.smith.langchain.com"
 LANGCHAIN_API_KEY = os.environ.get('LANGCHAIN_API_KEY')
 LANGCHAIN_PROJECT = "meal-planner"
+
+# Email Configuration
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')  # Use console for development
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@mealplanner.com')
+
+# Frontend URL for email verification links
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
