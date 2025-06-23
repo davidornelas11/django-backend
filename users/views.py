@@ -11,8 +11,11 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework import generics
 from .serializers import UserSerializer, ProfileSerializer, TokenSerializer
-from .models import Profile, RefreshToken
+from .models import Profile, RefreshToken, EmailVerification
 from datetime import datetime
+from django.core.mail import send_mail
+from django.conf import settings
+from django.utils import timezone
 
 # Create your views here.
 
@@ -21,6 +24,41 @@ class RegisterRateThrottle(AnonRateThrottle):
 
 class LoginRateThrottle(AnonRateThrottle):
     rate = '5/minute'  # Stricter rate limit for login attempts
+
+class EmailVerificationThrottle(AnonRateThrottle):
+    rate = '3/hour'
+
+def send_verification_email(user, verification_token):
+    """Send verification email to user"""
+    subject = 'Verify your email address'
+    verification_url = f"{settings.FRONTEND_URL}/verify-email/{verification_token}"
+    message = f"""
+    Hi {user.username},
+    
+    Thank you for registering! Please verify your email address by clicking the link below:
+    
+    {verification_url}
+    
+    This link will expire in 24 hours.
+    
+    If you didn't create an account, please ignore this email.
+    
+    Best regards,
+    The Meal Planner Team
+    """
+    
+    try:
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            fail_silently=False,
+        )
+        return True
+    except Exception as e:
+        print(f"Failed to send verification email: {e}")
+        return False
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -63,6 +101,10 @@ def register(request):
         password=password
     )
 
+    # Send verification email
+    verification = user.email_verification
+    email_sent = send_verification_email(user, verification.verification_token)
+
     # Create access token
     access_token, _ = Token.objects.get_or_create(user=user)
     
@@ -72,8 +114,95 @@ def register(request):
     return Response({
         'access_token': access_token.key,
         'refresh_token': refresh_token.token,
-        'user': UserSerializer(user).data
+        'user': UserSerializer(user).data,
+        'email_verification_sent': email_sent,
+        'message': 'Registration successful! Please check your email to verify your account.'
     }, status=status.HTTP_201_CREATED)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_email(request):
+    """Verify user's email address"""
+    token = request.data.get('token')
+    
+    if not token:
+        return Response(
+            {'error': 'Verification token is required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        verification = EmailVerification.objects.get(verification_token=token)
+        
+        if verification.is_expired():
+            return Response(
+                {'error': 'Verification token has expired'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if verification.is_verified:
+            return Response(
+                {'message': 'Email is already verified'},
+                status=status.HTTP_200_OK
+            )
+        
+        # Mark as verified
+        verification.is_verified = True
+        verification.save()
+        
+        return Response({
+            'message': 'Email verified successfully! You can now create meal plans.',
+            'user': UserSerializer(verification.user).data
+        }, status=status.HTTP_200_OK)
+        
+    except EmailVerification.DoesNotExist:
+        return Response(
+            {'error': 'Invalid verification token'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@throttle_classes([EmailVerificationThrottle])
+def resend_verification_email(request):
+    """Resend verification email"""
+    email = request.data.get('email')
+    
+    if not email:
+        return Response(
+            {'error': 'Email is required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        user = User.objects.get(email=email)
+        
+        # Check if already verified
+        if user.profile.is_email_verified:
+            return Response(
+                {'message': 'Email is already verified'},
+                status=status.HTTP_200_OK
+            )
+        
+        # Create new verification token
+        verification = EmailVerification.create_verification(user)
+        email_sent = send_verification_email(user, verification.verification_token)
+        
+        if email_sent:
+            return Response({
+                'message': 'Verification email sent successfully'
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response(
+                {'error': 'Failed to send verification email'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            
+    except User.DoesNotExist:
+        return Response(
+            {'error': 'User with this email does not exist'},
+            status=status.HTTP_404_NOT_FOUND
+        )
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -107,7 +236,8 @@ def login_view(request):
     return Response({
         'access_token': access_token.key,
         'refresh_token': refresh_token.token,
-        'user': UserSerializer(user).data
+        'user': UserSerializer(user).data,
+        'email_verified': user.profile.is_email_verified
     })
 
 @api_view(['POST'])
@@ -144,7 +274,8 @@ def refresh_token(request):
         
         return Response({
             'access_token': access_token.key,
-            'user': UserSerializer(token_obj.user).data
+            'user': UserSerializer(token_obj.user).data,
+            'email_verified': token_obj.user.profile.is_email_verified
         })
     except RefreshToken.DoesNotExist:
         return Response(

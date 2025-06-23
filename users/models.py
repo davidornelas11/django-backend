@@ -4,6 +4,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from datetime import datetime, timedelta
 import uuid
+from django.utils import timezone
 
 # Create your models here.
 
@@ -26,6 +27,40 @@ class RefreshToken(models.Model):
             token=token,
             expires_at=expires_at
         )
+
+class EmailVerification(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='email_verification')
+    verification_token = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_verified = models.BooleanField(default=False)
+    
+    def __str__(self):
+        return f"Email verification for {self.user.username}"
+    
+    @classmethod
+    def create_verification(cls, user):
+        """Create a new email verification token"""
+        token = str(uuid.uuid4())
+        expires_at = timezone.now() + timedelta(hours=24)  # 24 hour expiry
+        verification, created = cls.objects.get_or_create(
+            user=user,
+            defaults={
+                'verification_token': token,
+                'expires_at': expires_at
+            }
+        )
+        if not created:
+            # Update existing verification with new token
+            verification.verification_token = token
+            verification.expires_at = expires_at
+            verification.is_verified = False
+            verification.save()
+        return verification
+    
+    def is_expired(self):
+        """Check if verification token is expired"""
+        return timezone.now() > self.expires_at
 
 class Profile(models.Model):
     STATUS_CHOICES = [
@@ -58,11 +93,21 @@ class Profile(models.Model):
 
     def __str__(self):
         return f"{self.user.username}'s profile"
+    
+    @property
+    def is_email_verified(self):
+        """Check if user's email is verified"""
+        try:
+            return self.user.email_verification.is_verified
+        except EmailVerification.DoesNotExist:
+            return False
 
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
         Profile.objects.create(user=instance)
+        # Create email verification for new users
+        EmailVerification.create_verification(instance)
 
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):

@@ -127,6 +127,7 @@ def test_user_creation():
         print(f"   - Profile ID: {profile.id}")
         print(f"   - Preferences: {profile.preferences}")
         print(f"   - Budget: ${profile.weekly_budget}")
+        print(f"   - Email verified: {profile.is_email_verified}")
         
         return test_user, profile
         
@@ -135,7 +136,7 @@ def test_user_creation():
         return None, None
 
 def test_celery_task():
-    """Test 4: Test Celery task execution"""
+    """Test 4: Test Celery task execution with email verification"""
     print("\n🔍 Testing Celery Task Execution...")
     
     try:
@@ -146,6 +147,12 @@ def test_celery_task():
             email=f"{test_username}@test.com",
             password="testpass123"
         )
+        
+        # Verify user's email for testing meal plan creation
+        from users.models import EmailVerification
+        verification = test_user.email_verification
+        verification.is_verified = True
+        verification.save()
         
         profile = test_user.profile
         profile.preferences = {
@@ -164,6 +171,7 @@ def test_celery_task():
         
         print(f"   - Using fresh profile ID: {profile.id}")
         print(f"   - User: {profile.user.username}")
+        print(f"   - Email verified: {profile.is_email_verified}")
         
         # Trigger the task
         task = generate_meal_plan.delay(profile.id)
@@ -213,7 +221,7 @@ def test_celery_task():
         return False
 
 def test_api_endpoint():
-    """Test 5: Test API endpoint"""
+    """Test 5: Test API endpoint with authentication"""
     print("\n🔍 Testing API Endpoint...")
     
     try:
@@ -224,6 +232,12 @@ def test_api_endpoint():
             email=f"{test_username}@test.com",
             password="testpass123"
         )
+        
+        # Verify user's email for testing meal plan creation
+        from users.models import EmailVerification
+        verification = test_user.email_verification
+        verification.is_verified = True
+        verification.save()
         
         profile = test_user.profile
         profile.preferences = {
@@ -238,8 +252,9 @@ def test_api_endpoint():
         profile.save()
         
         print(f"   - Testing with fresh profile ID: {profile.id}")
+        print(f"   - Email verified: {profile.is_email_verified}")
         
-        # Trigger task via API logic
+        # Trigger task via API logic (simulating authenticated request)
         task = generate_meal_plan.delay(profile.id)
         
         # Wait for completion

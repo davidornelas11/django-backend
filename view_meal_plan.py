@@ -103,6 +103,17 @@ def create_and_view_meal_plan():
         profile.save()
         
         print(f"✅ Created test profile: {test_username} (ID: {profile.id})")
+        print(f"   - Email verified: {profile.is_email_verified}")
+        
+        # Verify email for meal plan creation
+        from users.models import EmailVerification
+        verification = test_user.email_verification
+        verification.is_verified = True
+        verification.save()
+        
+        # Refresh profile to show updated verification status
+        profile.refresh_from_db()
+        print(f"   - Email verified after update: {profile.is_email_verified}")
         
         # Trigger meal plan generation
         from core.tasks import generate_meal_plan
@@ -185,7 +196,13 @@ def show_database_status():
     pending_profiles = Profile.objects.filter(status='PENDING').count()
     failed_profiles = Profile.objects.filter(status='FAILED').count()
     
+    # Count email verification status
+    verified_profiles = Profile.objects.filter(user__email_verification__is_verified=True).count()
+    unverified_profiles = total_profiles - verified_profiles
+    
     print(f"Total Profiles: {total_profiles}")
+    print(f"Email Verified: {verified_profiles}")
+    print(f"Email Unverified: {unverified_profiles}")
     print(f"Completed: {completed_profiles}")
     print(f"Pending: {pending_profiles}")
     print(f"Failed: {failed_profiles}")
@@ -195,11 +212,12 @@ def show_database_status():
     if completed:
         print(f"\n✅ Completed Meal Plans:")
         for profile in completed:
+            verification_status = "✅" if profile.is_email_verified else "❌"
             if profile.meal_plan and isinstance(profile.meal_plan, dict) and 'plan' in profile.meal_plan:
                 plan_text = profile.meal_plan['plan']
-                print(f"  - {profile.user.username} (ID: {profile.id}): {len(plan_text)} chars")
+                print(f"  - {profile.user.username} (ID: {profile.id}) {verification_status}: {len(plan_text)} chars")
             else:
-                print(f"  - {profile.user.username} (ID: {profile.id}): No meal plan data")
+                print(f"  - {profile.user.username} (ID: {profile.id}) {verification_status}: No meal plan data")
 
 def main():
     """Main function"""

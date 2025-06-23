@@ -36,6 +36,8 @@ def check_all_profiles():
         print(f"Profile #{i}:")
         print(f"  - ID: {profile.id}")
         print(f"  - User: {profile.user.username}")
+        print(f"  - Email: {profile.user.email}")
+        print(f"  - Email Verified: {profile.is_email_verified}")
         print(f"  - Status: {profile.status}")
         print(f"  - Created: {profile.created_at}")
         print(f"  - Updated: {profile.updated_at}")
@@ -60,6 +62,8 @@ def check_all_profiles():
                 print(f"    - Cart URL: {profile.meal_plan['cart_url']}")
         else:
             print(f"  - ❌ Meal Plan: NOT GENERATED")
+            if not profile.is_email_verified:
+                print(f"    - Reason: Email not verified")
         
         print("-" * 40)
 
@@ -205,6 +209,17 @@ def create_test_meal_plan():
         print(f"  - User: {test_user.username}")
         print(f"  - Profile ID: {profile.id}")
         print(f"  - Status: {profile.status}")
+        print(f"  - Email verified: {profile.is_email_verified}")
+        
+        # Verify email for meal plan creation
+        from users.models import EmailVerification
+        verification = test_user.email_verification
+        verification.is_verified = True
+        verification.save()
+        
+        # Refresh profile to show updated verification status
+        profile.refresh_from_db()
+        print(f"  - Email verified after update: {profile.is_email_verified}")
         
         # Trigger meal plan generation
         from core.tasks import generate_meal_plan

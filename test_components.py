@@ -110,12 +110,12 @@ def test_instacart_client_structure():
         return False
 
 def test_database_models():
-    """Test database models and relationships"""
+    """Test database models and relationships including email verification"""
     print("\n🔍 Testing Database Models...")
     
     try:
         from django.contrib.auth.models import User
-        from users.models import Profile
+        from users.models import Profile, EmailVerification
         
         # Test user creation
         test_user = User.objects.create_user(
@@ -130,6 +130,13 @@ def test_database_models():
         print(f"   - User ID: {test_user.id}")
         print(f"   - Profile ID: {profile.id}")
         
+        # Test email verification relationship
+        email_verification = test_user.email_verification
+        print(f"✅ Email verification record created")
+        print(f"   - Verification ID: {email_verification.id}")
+        print(f"   - Is verified: {email_verification.is_verified}")
+        print(f"   - Profile verification property: {profile.is_email_verified}")
+        
         # Test profile fields
         profile.preferences = {"test": "data"}
         profile.dietary_restrictions = {"vegetarian": False}
@@ -137,6 +144,12 @@ def test_database_models():
         profile.save()
         
         print("✅ Profile fields updated")
+        
+        # Test email verification
+        email_verification.is_verified = True
+        email_verification.save()
+        profile.refresh_from_db()
+        print(f"✅ Email verification updated: {profile.is_email_verified}")
         
         # Cleanup
         test_user.delete()

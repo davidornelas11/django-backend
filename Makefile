@@ -1,7 +1,7 @@
 # Makefile for Django Meal Planning Project
 # Provides easy commands for Docker operations
 
-.PHONY: help setup dev-up dev-down dev-logs test test-clean prod-up prod-down migrate superuser shell rebuild status logs-web logs-celery logs-celery-beat test-components test-integration test-instacart check-meals view-meals cleanup
+.PHONY: help setup dev-up dev-down dev-logs test test-clean prod-up prod-down migrate superuser shell rebuild status logs-web logs-celery logs-celery-beat test-components test-integration test-instacart test-auth check-meals view-meals cleanup
 
 # Default target
 help:
@@ -20,6 +20,7 @@ help:
 	@echo "Testing:"
 	@echo "  make test           # Run all tests"
 	@echo "  make test-clean     # Clean test environment"
+	@echo "  make test-auth      # Run authentication tests"
 	@echo "  make test-components # Run component tests"
 	@echo "  make test-integration # Run integration tests"
 	@echo "  make test-instacart # Run Instacart API tests"
@@ -79,6 +80,10 @@ test:
 test-clean:
 	@echo "🧹 Cleaning up test environment..."
 	@./scripts/docker-commands.sh test-clean
+
+test-auth:
+	@echo "🔐 Running authentication tests..."
+	@./scripts/docker-commands.sh test-auth
 
 test-components:
 	@echo "🧪 Running component tests..."
