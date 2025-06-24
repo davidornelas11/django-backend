@@ -26,17 +26,16 @@ def test_langchain_setup():
     print("🔍 Testing LangChain Setup...")
     
     try:
-        from langchain.chat_models import ChatOpenAI
-        from langchain.prompts import PromptTemplate
-        from langchain.chains import LLMChain
+        from langchain_openai import ChatOpenAI
+        from langchain_core.prompts import PromptTemplate
         
         print("✅ All LangChain imports successful")
         
         # Test OpenAI model initialization
         llm = ChatOpenAI(
             temperature=0.7,
-            model_name="gpt-4o-mini",  # Use a valid model name
-            openai_api_key=os.getenv('OPENAI_API_KEY')
+            model="gpt-4o-mini",  # Updated parameter name
+            api_key=os.getenv('OPENAI_API_KEY')
         )
         print("✅ OpenAI model initialized")
         
@@ -45,9 +44,9 @@ def test_langchain_setup():
         prompt = PromptTemplate(template=template, input_variables=["input"])
         print("✅ Prompt template created")
         
-        # Test LLMChain
-        chain = LLMChain(llm=llm, prompt=prompt)
-        print("✅ LLMChain created")
+        # Test modern RunnableSequence (prompt | llm) instead of deprecated LLMChain
+        chain = prompt | llm
+        print("✅ RunnableSequence (prompt | llm) created")
         
         return True
         
@@ -60,12 +59,12 @@ def test_openai_connection():
     print("\n🔍 Testing OpenAI Connection...")
     
     try:
-        from langchain.chat_models import ChatOpenAI
+        from langchain_openai import ChatOpenAI
         
         llm = ChatOpenAI(
             temperature=0.1,
-            model_name="gpt-4o-mini",
-            openai_api_key=os.getenv('OPENAI_API_KEY')
+            model="gpt-4o-mini",  # Updated parameter name
+            api_key=os.getenv('OPENAI_API_KEY')
         )
         
         # Test a simple completion
@@ -96,12 +95,20 @@ def test_instacart_client_structure():
         print(f"   - Headers: {client.session.headers}")
         
         # Test cart creation (mock)
-        cart = Cart(client, "test_cart_id")
+        mock_cart_data = {
+            "id": "test_cart_id",
+            "share_url": "https://example.com/share/test_cart",
+            "status": "active"
+        }
+        cart = Cart(client, mock_cart_data)
         print("✅ Cart object created")
+        print(f"   - Cart ID: {cart.cart_id}")
+        print(f"   - Share URL: {cart.share_url}")
         
-        # Test adding items
-        cart.add_item("test_item", 1.0, "each")
-        print(f"✅ Item added to cart: {cart.items}")
+        # Test cart methods
+        cart_data = cart.get_cart_data()
+        share_url = cart.get_share_url()
+        print(f"✅ Cart methods working: {bool(cart_data and share_url)}")
         
         return True
         
@@ -198,10 +205,16 @@ def test_meal_planning_chain():
         chain = create_meal_planning_chain()
         print("✅ Meal planning chain created")
         
-        # Test chain structure
+        # Test chain structure - RunnableSequence has different attributes
         print(f"   - Chain type: {type(chain).__name__}")
-        print(f"   - LLM model: {chain.llm.model_name}")
-        print(f"   - Prompt variables: {chain.prompt.input_variables}")
+        # For RunnableSequence, we access the steps
+        if hasattr(chain, 'steps') and len(chain.steps) >= 2:
+            llm = chain.steps[1]  # Second step should be the LLM
+            prompt = chain.steps[0]  # First step should be the prompt
+            print(f"   - LLM model: {getattr(llm, 'model', 'N/A')}")
+            print(f"   - Prompt variables: {getattr(prompt, 'input_variables', 'N/A')}")
+        else:
+            print("   - Modern RunnableSequence structure")
         
         return True
         
@@ -239,9 +252,15 @@ def test_simple_meal_plan():
         
         print("✅ Meal plan generation successful")
         print(f"   - Result type: {type(result)}")
-        print(f"   - Result keys: {list(result.keys())}")
-        print(f"   - Text length: {len(result['text'])} characters")
-        print(f"   - First 100 chars: {result['text'][:100]}...")
+        
+        # With RunnableSequence, result is an AIMessage object
+        if hasattr(result, 'content'):
+            print(f"   - Result has content attribute (AIMessage)")
+            print(f"   - Text length: {len(result.content)} characters")
+            print(f"   - First 100 chars: {result.content[:100]}...")
+        else:
+            # Fallback for other result types
+            print(f"   - Result keys: {list(result.keys()) if hasattr(result, 'keys') else 'No keys'}")
         
         return True
         

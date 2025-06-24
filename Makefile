@@ -30,6 +30,12 @@ help:
 	@echo "  make superuser      # Create Django superuser"
 	@echo "  make shell          # Open Django shell"
 	@echo ""
+	@echo "Database Viewing:"
+	@echo "  make view-db        # Database summary"
+	@echo "  make view-users     # View all users"
+	@echo "  make view-profiles  # View user profiles"
+	@echo "  make view-meal-plans # View generated meal plans"
+	@echo ""
 	@echo "Meal Plans:"
 	@echo "  make check-meals    # Check meal plans in database"
 	@echo "  make view-meals     # View meal plans"
@@ -109,6 +115,23 @@ superuser:
 shell:
 	@echo "🐍 Opening Django shell..."
 	@./scripts/docker-commands.sh shell
+
+# Database viewing commands
+view-db:
+	@echo "📊 Database summary..."
+	@docker-compose -f docker-compose.dev.yml exec web python manage.py view_data --summary
+
+view-users:
+	@echo "👥 Viewing all users..."
+	@docker-compose -f docker-compose.dev.yml exec web python manage.py view_data --users
+
+view-profiles:
+	@echo "👤 Viewing user profiles..."
+	@docker-compose -f docker-compose.dev.yml exec web python manage.py view_data --profiles
+
+view-meal-plans:
+	@echo "🍽️  Viewing generated meal plans..."
+	@docker-compose -f docker-compose.dev.yml exec web python manage.py view_data --meal-plans
 
 # Meal plan commands
 check-meals:

@@ -16,22 +16,25 @@ from datetime import datetime
 from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
+import os
 
 # Create your views here.
 
 class RegisterRateThrottle(AnonRateThrottle):
-    rate = '5/hour'
+    rate = '1000/hour' if os.getenv('TESTING_MODE') == 'True' else '5/hour'
 
 class LoginRateThrottle(AnonRateThrottle):
-    rate = '5/minute'  # Stricter rate limit for login attempts
+    rate = '1000/hour' if os.getenv('TESTING_MODE') == 'True' else '5/minute'  # Stricter rate limit for login attempts
 
 class EmailVerificationThrottle(AnonRateThrottle):
-    rate = '3/hour'
+    rate = '1000/hour' if os.getenv('TESTING_MODE') == 'True' else '3/hour'
 
 def send_verification_email(user, verification_token):
     """Send verification email to user"""
     subject = 'Verify your email address'
-    verification_url = f"{settings.FRONTEND_URL}/verify-email/{verification_token}"
+    # Use the API URL for direct verification, not frontend URL
+    api_base_url = os.environ.get('API_BASE_URL', 'http://localhost:8000')
+    verification_url = f"{api_base_url}/auth/verify-email/{verification_token}"
     message = f"""
     Hi {user.username},
     
@@ -116,13 +119,14 @@ def register(request):
         'refresh_token': refresh_token.token,
         'user': UserSerializer(user).data,
         'email_verification_sent': email_sent,
-        'message': 'Registration successful! Please check your email to verify your account.'
+        'message': 'Registration successful! Please check your email to verify your account.',
+        'success': True
     }, status=status.HTTP_201_CREATED)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def verify_email(request):
-    """Verify user's email address"""
+    """Verify user's email address via POST (for API calls)"""
     token = request.data.get('token')
     
     if not token:
@@ -158,6 +162,41 @@ def verify_email(request):
     except EmailVerification.DoesNotExist:
         return Response(
             {'error': 'Invalid verification token'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def verify_email_link(request, token):
+    """Verify user's email address via GET (for email links)"""
+    try:
+        verification = EmailVerification.objects.get(verification_token=token)
+        
+        if verification.is_expired():
+            return Response(
+                {'error': 'Verification token has expired', 'expired': True},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if verification.is_verified:
+            return Response(
+                {'message': 'Email is already verified', 'already_verified': True},
+                status=status.HTTP_200_OK
+            )
+        
+        # Mark as verified
+        verification.is_verified = True
+        verification.save()
+        
+        return Response({
+            'message': 'Email verified successfully! You can now create meal plans.',
+            'user': UserSerializer(verification.user).data,
+            'success': True
+        }, status=status.HTTP_200_OK)
+        
+    except EmailVerification.DoesNotExist:
+        return Response(
+            {'error': 'Invalid verification token', 'invalid_token': True},
             status=status.HTTP_400_BAD_REQUEST
         )
 

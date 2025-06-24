@@ -2,24 +2,21 @@ from celery import shared_task
 import os
 from users.models import Profile
 import logging
-from typing import Dict, List, Optional
-from langchain.prompts import PromptTemplate
-from langchain.chat_models import ChatOpenAI
-from langchain.chains import LLMChain
-import json
+from langchain_core.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
 from .instacart_client import InstacartClient
 
 logger = logging.getLogger('core.tasks')
 
 def create_meal_planning_chain():
     """
-    Creates a LangChain chain for meal planning using OpenAI.
-    Uses a simple LLMChain approach instead of complex agents to avoid parsing errors.
+    Creates a LangChain runnable chain for meal planning using OpenAI.
+    Uses modern RunnableSequence (prompt | llm) instead of deprecated LLMChain.
     """
     llm = ChatOpenAI(
         temperature=0.7,
-        model_name="gpt-4o-mini",  # Use a valid model name
-        openai_api_key=os.getenv('OPENAI_API_KEY')
+        model="gpt-4o-mini",  # Updated parameter name
+        api_key=os.getenv('OPENAI_API_KEY')
     )
     
     template = """You are a meal planning assistant. Create a detailed weekly meal plan based on the user's preferences and dietary restrictions.
@@ -46,7 +43,8 @@ Meal Plan:"""
         input_variables=["preferences", "dietary_restrictions", "budget"]
     )
     
-    return LLMChain(llm=llm, prompt=prompt)
+    # Modern approach: return RunnableSequence (prompt | llm)
+    return prompt | llm
 
 def create_instacart_cart(meal_plan: str, profile: Profile) -> str:
     """
@@ -124,6 +122,15 @@ def generate_meal_plan(profile_id):
         profile = Profile.objects.get(id=profile_id)
         logger.debug(f"Retrieved profile: {profile.user.username} with preferences: {profile.preferences}")
         
+        # Archive existing meal plan if it exists
+        if profile.meal_plan:
+            logger.info(f"Archiving existing meal plan for user {profile.user.username}")
+            archived = profile.archive_current_meal_plan()
+            if archived:
+                logger.info(f"Successfully archived meal plan for week of {archived.week_start_date}")
+            else:
+                logger.warning("Failed to archive existing meal plan")
+        
         # Create the meal planning chain
         meal_planning_chain = create_meal_planning_chain()
         logger.debug("Created meal planning chain")
@@ -137,20 +144,29 @@ def generate_meal_plan(profile_id):
                 "budget": str(profile.weekly_budget)
             })
             
-            meal_plan_text = result['text']
+            # With RunnableSequence, result is an AIMessage object
+            meal_plan_text = result.content
             logger.info("Successfully generated meal plan")
             
             # Create Instacart cart
             cart_url = create_instacart_cart(meal_plan_text, profile)
             
+            # Create structured meal plan data
+            from datetime import date, datetime
+            current_date = date.today()
+            
             # Update profile with generated data
             profile.meal_plan = {
                 'plan': meal_plan_text,
                 'cart_url': cart_url,
-                'generated_at': str(profile.updated_at)
+                'week_of': current_date.isoformat(),
+                'total_budget': float(profile.weekly_budget) if profile.weekly_budget else 0,
+                'generated_at': datetime.now().isoformat()
             }
             profile.status = 'COMPLETED'
             profile.save()
+            
+            logger.info(f"Successfully saved new meal plan for user {profile.user.username}")
             
             return f"Successfully generated meal plan for profile ID: {profile_id} (User: {profile.user.username})"
             

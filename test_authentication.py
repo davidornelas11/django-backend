@@ -20,9 +20,19 @@ import requests
 import json
 from datetime import datetime
 
-# Setup Django
+# Setup Django with test-friendly throttling
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
+os.environ.setdefault('TESTING_MODE', 'True')  # Flag for test mode
 django.setup()
+
+# Override throttle settings for testing
+from django.conf import settings
+if hasattr(settings, 'REST_FRAMEWORK'):
+    # Temporarily disable throttling for tests
+    settings.REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
+        'anon': '1000/hour',  # Very generous for testing
+        'user': '1000/hour'
+    }
 
 from django.contrib.auth.models import User
 from users.models import Profile, EmailVerification, RefreshToken
@@ -142,6 +152,9 @@ def test_login_logout(user_data):
     try:
         user = user_data['user']
         password = user_data['password']
+        
+        # Add delay to avoid rate limiting
+        time.sleep(15)  # Wait longer for login due to 5/minute limit
         
         # Test login
         login_data = {
@@ -338,6 +351,9 @@ def test_email_resend():
             email=test_email,
             password="ResendTestPass123!"
         )
+        
+        # Add longer delay to avoid rate limiting (email has 3/hour limit)
+        time.sleep(5)
         
         # Test resend endpoint
         resend_data = {"email": test_email}
