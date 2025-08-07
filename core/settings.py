@@ -45,11 +45,9 @@ INSTALLED_APPS = [
     
     # Third party apps
     'rest_framework',
-    'rest_framework.authtoken',
     'corsheaders',
     
     # Local apps
-    'users',
     'api',
 ]
 
@@ -165,20 +163,14 @@ CORS_ALLOW_CREDENTIALS = True
 
 # REST Framework settings
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
-    ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.AllowAny',
     ],
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle'
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/day',
-        'user': '1000/day'
     }
 }
 

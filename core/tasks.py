@@ -1,6 +1,5 @@
 from celery import shared_task
 import os
-from users.models import Profile
 import logging
 from typing import Dict, List, Optional
 from langchain.prompts import PromptTemplate
@@ -48,13 +47,13 @@ Meal Plan:"""
     
     return LLMChain(llm=llm, prompt=prompt)
 
-def create_instacart_cart(meal_plan: str, profile: Profile) -> str:
+def create_instacart_cart(meal_plan: str, meal_data: Dict) -> str:
     """
     Creates an Instacart shopping cart based on the meal plan.
     
     Args:
         meal_plan: The generated meal plan text
-        profile: User profile with location information
+        meal_data: Dictionary containing meal planning preferences
         
     Returns:
         str: URL to the created Instacart cart
@@ -90,7 +89,7 @@ def create_instacart_cart(meal_plan: str, profile: Profile) -> str:
         ]
         
         # Create meal plan cart
-        cart_title = f"Weekly Meal Plan for {profile.user.username}"
+        cart_title = "Weekly Meal Plan"
         logger.info(f"🔍 DEBUG: Creating cart with title: {cart_title}")
         logger.info(f"🔍 DEBUG: Ingredients count: {len(ingredients)}")
         
@@ -118,11 +117,22 @@ def create_instacart_cart(meal_plan: str, profile: Profile) -> str:
         return "https://instacart.com/cart/mock-cart-url"
 
 @shared_task
-def generate_meal_plan(profile_id):
+def generate_meal_plan(meal_data: Dict):
+    """
+    Generate a meal plan based on provided meal data.
+    
+    Args:
+        meal_data: Dictionary containing preferences, dietary_restrictions, and budget
+    """
     try:
-        logger.info(f"Starting meal plan generation for profile {profile_id}")
-        profile = Profile.objects.get(id=profile_id)
-        logger.debug(f"Retrieved profile: {profile.user.username} with preferences: {profile.preferences}")
+        logger.info(f"Starting meal plan generation with data: {meal_data}")
+        
+        # Validate required fields
+        required_fields = ['preferences', 'dietary_restrictions', 'budget']
+        for field in required_fields:
+            if field not in meal_data:
+                logger.error(f"Missing required field: {field}")
+                return f"Error: Missing required field {field}"
         
         # Create the meal planning chain
         meal_planning_chain = create_meal_planning_chain()
@@ -132,40 +142,35 @@ def generate_meal_plan(profile_id):
             # Generate the meal plan
             logger.info("Invoking meal planning chain")
             result = meal_planning_chain.invoke({
-                "preferences": str(profile.preferences),
-                "dietary_restrictions": str(profile.dietary_restrictions),
-                "budget": str(profile.weekly_budget)
+                "preferences": str(meal_data['preferences']),
+                "dietary_restrictions": str(meal_data['dietary_restrictions']),
+                "budget": str(meal_data['budget'])
             })
             
             meal_plan_text = result['text']
             logger.info("Successfully generated meal plan")
             
             # Create Instacart cart
-            cart_url = create_instacart_cart(meal_plan_text, profile)
+            cart_url = create_instacart_cart(meal_plan_text, meal_data)
             
-            # Update profile with generated data
-            profile.meal_plan = {
-                'plan': meal_plan_text,
+            # Return the generated meal plan and cart URL
+            return {
+                'status': 'success',
+                'meal_plan': meal_plan_text,
                 'cart_url': cart_url,
-                'generated_at': str(profile.updated_at)
+                'message': 'Successfully generated meal plan'
             }
-            profile.status = 'COMPLETED'
-            profile.save()
-            
-            return f"Successfully generated meal plan for profile ID: {profile_id} (User: {profile.user.username})"
             
         except Exception as e:
             logger.error(f"Error during meal plan generation: {str(e)}", exc_info=True)
-            profile.status = 'FAILED'
-            profile.save()
-            return f"Error while generating meal plan for profile {profile_id}: {str(e)}"
+            return {
+                'status': 'error',
+                'message': f"Error while generating meal plan: {str(e)}"
+            }
             
-    except Profile.DoesNotExist:
-        logger.error(f"Profile {profile_id} not found")
-        return f"Profile {profile_id} not found"
     except Exception as e:
         logger.error(f"Unexpected error in generate_meal_plan: {str(e)}", exc_info=True)
-        if 'profile' in locals():
-            profile.status = 'FAILED'
-            profile.save()
-        return f"Unexpected error while generating meal plan for profile {profile_id}: {str(e)}" 
+        return {
+            'status': 'error',
+            'message': f"Unexpected error while generating meal plan: {str(e)}"
+        } 
