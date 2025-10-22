@@ -209,6 +209,46 @@ def test_meal_planning_chain():
         print(f"❌ Meal planning chain test failed: {str(e)}")
         return False
 
+def test_structured_meal_plan_output():
+    """Verify chain returns structured JSON (skips gracefully without API key)"""
+    print("\n🔍 Testing Structured Meal Plan Output...")
+
+    openai_key = os.getenv('OPENAI_API_KEY', '')
+    if not openai_key.startswith('sk-'):
+        print("⚠️  OPENAI_API_KEY missing; skipping structured output test")
+        return True  # Treat skip as pass in this framework
+
+    try:
+        from core.tasks import create_meal_planning_chain
+        chain = create_meal_planning_chain()
+
+        result = chain.invoke({
+            "preferences": "high protein",
+            "dietary_restrictions": "no pork",
+            "budget": "120",
+        })
+
+        # With structured output: result is a Pydantic model
+        data = result.dict() if hasattr(result, "dict") else result.model_dump()
+        has_days = isinstance(data.get("days"), list)
+        has_list = isinstance(data.get("shopping_list"), list)
+        has_cost = "total_estimated_cost" in data
+
+        print(f"   - Has days: {has_days}")
+        print(f"   - Has shopping_list: {has_list}")
+        print(f"   - Has total_estimated_cost: {has_cost}")
+
+        ok = has_days and has_list and has_cost
+        if not ok:
+            print("❌ Structured output is missing required keys")
+        else:
+            print("✅ Structured output shape looks correct")
+        return ok
+
+    except Exception as e:
+        print(f"❌ Structured output test failed: {str(e)}")
+        return False
+
 def test_simple_meal_plan():
     """Test a simple meal plan generation (without Instacart)"""
     print("\n🔍 Testing Simple Meal Plan Generation...")
@@ -262,6 +302,7 @@ def main():
         ("Celery Configuration", test_celery_configuration),
         ("Meal Planning Chain", test_meal_planning_chain),
         ("Simple Meal Plan", test_simple_meal_plan),
+        ("Structured Meal Plan Output", test_structured_meal_plan_output),
     ]
     
     results = []

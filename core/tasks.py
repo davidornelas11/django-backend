@@ -8,6 +8,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.chains import LLMChain
 import json
 from .instacart_client import InstacartClient
+from core.schemas.meal_plan import MealPlan
 
 logger = logging.getLogger('core.tasks')
 
@@ -17,9 +18,15 @@ def create_meal_planning_chain():
     Uses a simple LLMChain approach instead of complex agents to avoid parsing errors.
     """
     llm = ChatOpenAI(
+<<<<<<< Updated upstream
         temperature=0.7,
         model_name="gpt-4o-mini",  # Use a valid model name
         openai_api_key=os.getenv('OPENAI_API_KEY')
+=======
+        temperature=0.2,
+        model="gpt-4o-mini",  # Updated parameter name
+        api_key=os.getenv('OPENAI_API_KEY')
+>>>>>>> Stashed changes
     )
     
     template = """You are a meal planning assistant. Create a detailed weekly meal plan based on the user's preferences and dietary restrictions.
@@ -39,21 +46,33 @@ Please create a comprehensive meal plan that:
 
 Format your response as a structured meal plan with clear sections for each day and a summary of ingredients needed.
 
-Meal Plan:"""
+Return only a JSON object that conforms exactly to the schema:
+- No markdown
+- No prose
+- No headings
+- No code fences
+
+If unsure about any field, make your best reasonable assumption that keeps the JSON valid."""
 
     prompt = PromptTemplate(
         template=template,
         input_variables=["preferences", "dietary_restrictions", "budget"]
     )
+<<<<<<< Updated upstream
     
     return LLMChain(llm=llm, prompt=prompt)
+=======
+    structured_llm = llm.with_structured_output(MealPlan)
+    # Modern approach: return RunnableSequence (prompt | structured_llm) 
+    return prompt | structured_llm
+>>>>>>> Stashed changes
 
-def create_instacart_cart(meal_plan: str, profile: Profile) -> str:
+def create_instacart_cart(meal_plan_data: dict, profile: Profile) -> str:
     """
     Creates an Instacart shopping cart based on the meal plan.
     
     Args:
-        meal_plan: The generated meal plan text
+        meal_plan_data: The generated meal plan data (structured JSON dict)
         profile: User profile with location information
         
     Returns:
@@ -74,30 +93,15 @@ def create_instacart_cart(meal_plan: str, profile: Profile) -> str:
         logger.info(f"🔍 DEBUG: Instacart client created with base URL: {client.base_url}")
         logger.info(f"🔍 DEBUG: Client headers: {dict(client.session.headers)}")
         
-        # Extract ingredients from meal plan (simplified for now)
-        # In a real implementation, you'd parse the meal plan text to extract ingredients
-        ingredients = [
-            {"name": "Chicken Breast", "quantity": 2, "unit": "lb"},
-            {"name": "Rice", "quantity": 1, "unit": "bag"},
-            {"name": "Broccoli", "quantity": 1, "unit": "bunch"},
-            {"name": "Olive Oil", "quantity": 1, "unit": "bottle"},
-            {"name": "Garlic", "quantity": 3, "unit": "cloves"},
-            {"name": "Onion", "quantity": 2, "unit": "each"},
-            {"name": "Tomatoes", "quantity": 4, "unit": "each"},
-            {"name": "Pasta", "quantity": 1, "unit": "box"},
-            {"name": "Ground Beef", "quantity": 1, "unit": "lb"},
-            {"name": "Cheese", "quantity": 1, "unit": "block"}
-        ]
+        # Extract ingredients from structured meal plan
+        ingredients = meal_plan_data.get('shopping_list', [])
         
         # Create meal plan cart
         cart_title = f"Weekly Meal Plan for {profile.user.username}"
         logger.info(f"🔍 DEBUG: Creating cart with title: {cart_title}")
         logger.info(f"🔍 DEBUG: Ingredients count: {len(ingredients)}")
         
-        cart_response = client.create_meal_plan_cart(
-            meal_plan_title=cart_title,
-            ingredients=ingredients
-        )
+        cart_response = client.create_meal_plan_cart(cart_title, ingredients)
         
         logger.info(f"🔍 DEBUG: Cart response received: {cart_response}")
         
@@ -136,6 +140,7 @@ def generate_meal_plan(profile_id):
                 "dietary_restrictions": str(profile.dietary_restrictions),
                 "budget": str(profile.weekly_budget)
             })
+<<<<<<< Updated upstream
             
             meal_plan_text = result['text']
             logger.info("Successfully generated meal plan")
@@ -152,6 +157,23 @@ def generate_meal_plan(profile_id):
             profile.status = 'COMPLETED'
             profile.save()
             
+=======
+
+            #result is a MealPlan (Pydantic model)
+            meal_plan_data = result.dict() # or result.model_dump()
+
+            # Create Instacart cart and persist structured data with cart URL
+            cart_url = create_instacart_cart(meal_plan_data, profile)
+            meal_plan_data_with_cart = dict(meal_plan_data)
+            meal_plan_data_with_cart['cart_url'] = cart_url
+
+            profile.meal_plan = meal_plan_data_with_cart
+            profile.status = 'COMPLETED'
+            profile.save()
+
+            logger.info(f"Successfully saved new meal plan for user {profile.user.username}")
+
+>>>>>>> Stashed changes
             return f"Successfully generated meal plan for profile ID: {profile_id} (User: {profile.user.username})"
             
         except Exception as e:
